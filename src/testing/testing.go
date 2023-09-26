@@ -1078,6 +1078,52 @@ func (c *common) logDepth(s string, depth int) {
 	}
 }
 
+func (c *common) Output() io.Writer {
+	return OutputWriter{c}
+}
+
+type OutputWriter struct {
+	c *common
+}
+
+func (s OutputWriter) Write(p []byte) (int, error) {
+	// Temporary hack to get the proof of concept working.
+	str := string(p)
+	depth := 3
+
+	// Code taken almost unchanged from c.logDepth().
+	// The return values are set to default as a quick fix.
+	s.c.mu.Lock()
+	defer s.c.mu.Unlock()
+	if s.c.done {
+		// This test has already finished. Try and log this message
+		// with our parent. If we don't have a parent, panic.
+		for parent := s.c.parent; parent != nil; parent = parent.parent {
+			parent.mu.Lock()
+			defer parent.mu.Unlock()
+			if !parent.done {
+				parent.output = append(parent.output, parent.decorate(str, depth+1)...)
+				return 0, nil
+			}
+		}
+		panic("Log in goroutine after " + s.c.name + " has completed: " + str)
+	} else {
+		if s.c.chatty != nil {
+			if s.c.bench {
+				// Benchmarks don't print === CONT, so we should skip the test
+				// printer and just print straight to stdout.
+				fmt.Print(s.c.decorate(str, depth+1))
+			} else {
+				s.c.chatty.Printf(s.c.name, "%s", s.c.decorate(str, depth+1))
+			}
+
+			return 0, nil
+		}
+		s.c.output = append(s.c.output, s.c.decorate(str, depth+1)...)
+	}
+	return 0, nil
+}
+
 // Log formats its arguments using default formatting, analogous to Println,
 // and records the text in the error log. For tests, the text will be printed only if
 // the test fails or the -test.v flag is set. For benchmarks, the text is always
