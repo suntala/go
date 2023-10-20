@@ -1079,47 +1079,66 @@ func (c *common) logDepth(s string, depth int) {
 }
 
 func (c *common) Output() io.Writer {
-	return OutputWriter{c}
+	b := make([]byte, 0)
+	return &outputWriter{c, b}
 }
 
-type OutputWriter struct {
+type outputWriter struct {
 	c *common
+	b []byte
 }
 
-func (s OutputWriter) Write(p []byte) (int, error) {
-	// Temporary hack to get the proof of concept working.
-	str := string(p)
-	depth := 3
+// TODO the return values are set to default as a quick fix.
+func (o *outputWriter) Write(p []byte) (int, error) {
+	o.b = append(o.b, p...)
 
-	// Code taken almost unchanged from c.logDepth().
-	// The return values are set to default as a quick fix.
-	s.c.mu.Lock()
-	defer s.c.mu.Unlock()
-	if s.c.done {
-		// This test has already finished. Try and log this message
-		// with our parent. If we don't have a parent, panic.
-		for parent := s.c.parent; parent != nil; parent = parent.parent {
-			parent.mu.Lock()
-			defer parent.mu.Unlock()
-			if !parent.done {
-				parent.output = append(parent.output, parent.decorate(str, depth+1)...)
-				return 0, nil
-			}
-		}
-		panic("Log in goroutine after " + s.c.name + " has completed: " + str)
-	} else {
-		if s.c.chatty != nil {
-			if s.c.bench {
-				// Benchmarks don't print === CONT, so we should skip the test
-				// printer and just print straight to stdout.
-				fmt.Print(s.c.decorate(str, depth+1))
-			} else {
-				s.c.chatty.Printf(s.c.name, "%s", s.c.decorate(str, depth+1))
-			}
+	o.c.mu.Lock()
+	defer o.c.mu.Unlock()
 
+	var i int
+	for i >= 0 {
+		// TODO avoid converting to string and then back to []byte repeatedly.
+		str := string(o.b)
+		i := strings.Index(str, "\n")
+
+		if i < 0 {
 			return 0, nil
 		}
-		s.c.output = append(s.c.output, s.c.decorate(str, depth+1)...)
+
+		bef := str[:i+1]
+		o.b = []byte(str[i+1:])
+
+		// TODO a lot of it was taken from logDepth(). Can we avoid repetition?
+		if o.c.done {
+			// This test has already finished. Try and log this message
+			// with our parent. If we don't have a parent, panic.
+			for parent := o.c.parent; parent != nil; parent = parent.parent {
+				// TODO logging a string with multiple new lines from a goroutine leads to
+				// a timeout because of repeated attempts to lock the mutex. Fix this. Consider
+				// removing the return statement and when to panic.
+				parent.mu.Lock()
+				defer parent.mu.Unlock()
+				if !parent.done {
+					parent.output = append(parent.output, fmt.Sprintf("    %s", bef)...)
+					return 0, nil
+				}
+			}
+			panic("Log in goroutine after " + o.c.name + " has completed: " + bef)
+		} else {
+			if o.c.chatty != nil {
+				if o.c.bench {
+					// Benchmarks don't print === CONT, so we should skip the test
+					// printer and just print straight to stdout.
+					fmt.Printf("    %s", bef)
+				} else {
+					o.c.chatty.Printf(o.c.name, "    %s", bef)
+				}
+				// TODO look into removing this return statement and where to
+				// append to o.c.output
+				return 0, nil
+			}
+			o.c.output = append(o.c.output, fmt.Sprintf("    %s", bef)...)
+		}
 	}
 	return 0, nil
 }
