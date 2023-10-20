@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestOutput(t *testing.T) {
+func TestWriterUsingSlogHandler(t *testing.T) {
 	// Slog log lines as they are currently printed out in tests.
 	logger1 := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true}))
 	logger1.Info("slog using standard output in parent test")
@@ -14,7 +14,6 @@ func TestOutput(t *testing.T) {
 	/*
 		t.Output() allows:
 		- the indentation of slog output to match t.Log() output
-		- prepending the ouput with callsite information
 		- printing of the output under the correct test header
 	*/
 	logger2 := slog.New(slog.NewTextHandler(t.Output(), nil))
@@ -32,4 +31,14 @@ func TestOutput(t *testing.T) {
 		logger4 := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true}))
 		logger4.Info("slog using standard output in subtest")
 	})
+}
+
+func TestWrite(t *testing.T) {
+	w := t.Output()
+
+	w.Write([]byte("Hel"))
+	w.Write([]byte("lo\nWorld\nInput to log\n\n\nMore logging\nShouldn't be logged"))
+	w.Write([]byte("Also shouldn't be logged"))
+
+	t.Error()
 }
