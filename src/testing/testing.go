@@ -1095,18 +1095,18 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 	o.c.mu.Lock()
 	defer o.c.mu.Unlock()
 
+	str := string(o.b)
 	var i int
 	for i >= 0 {
-		// TODO avoid converting to string and then back to []byte repeatedly.
-		str := string(o.b)
-		i := strings.Index(str, "\n")
+		i = strings.Index(str, "\n")
 
 		if i < 0 {
+			o.b = []byte(str)
 			return 0, nil
 		}
 
 		bef := str[:i+1]
-		o.b = []byte(str[i+1:])
+		str = str[i+1:]
 
 		// TODO a lot of it was taken from logDepth(). Can we avoid repetition?
 		if o.c.done {
