@@ -1986,8 +1986,68 @@ func (t *T) report() {
 //	When used with go test -json, any log messages are printed in JSON form.
 //	A TestEvent corresponding to a log message has OutputType "slog", and the Output field contains the JSON text.
 func (t *T) Slog() *slog.Logger {
-	// TODO: Add implementation
-	return nil
+	// #TODO refactor the approach overall.
+	return slog.New(slog.NewTextHandler(outputWriter{&t.common}, nil))
+}
+
+type outputWriter struct {
+	c *common
+}
+
+func (s outputWriter) Write(p []byte) (int, error) {
+	// Temporary hack to get the proof of concept working.
+	str := string(p)
+
+	// Code taken almost unchanged from c.logDepth().
+	// The return values are set to default as a quick fix.
+	s.c.mu.Lock()
+	defer s.c.mu.Unlock()
+	if s.c.done {
+		// This test has already finished. Try and log this message
+		// with our parent. If we don't have a parent, panic.
+		for parent := s.c.parent; parent != nil; parent = parent.parent {
+			parent.mu.Lock()
+			defer parent.mu.Unlock()
+			if !parent.done {
+				parent.output = append(parent.output, parent.decorateSlog(str)...)
+				return 0, nil
+			}
+		}
+		panic("Log in goroutine after " + s.c.name + " has completed: " + str)
+	} else {
+		if s.c.chatty != nil {
+			if s.c.bench {
+				// Benchmarks don't print === CONT, so we should skip the test
+				// printer and just print straight to stdout.
+				fmt.Print(s.c.decorateSlog(str))
+			} else {
+				s.c.chatty.Printf(s.c.name, "%s", s.c.decorateSlog(str))
+			}
+
+			return 0, nil
+		}
+		s.c.output = append(s.c.output, s.c.decorateSlog(str)...)
+	}
+	return 0, nil
+}
+
+func (c *common) decorateSlog(s string) string {
+	buf := new(strings.Builder)
+	// Every line is indented at least 4 spaces.
+	buf.WriteString("    ")
+	lines := strings.Split(s, "\n")
+	if l := len(lines); l > 1 && lines[l-1] == "" {
+		lines = lines[:l-1]
+	}
+	for i, line := range lines {
+		if i > 0 {
+			// Second and subsequent lines are indented an additional 4 spaces.
+			buf.WriteString("\n        ")
+		}
+		buf.WriteString(line)
+	}
+	buf.WriteByte('\n')
+	return buf.String()
 }
 
 func listTests(matchString func(pat, str string) (bool, error), tests []InternalTest, benchmarks []InternalBenchmark, fuzzTargets []InternalFuzzTarget, examples []InternalExample) {
