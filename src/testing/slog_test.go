@@ -16,13 +16,13 @@ func TestSlog(t *testing.T) {
 		- the indentation of slog output to match t.Log() output
 		- printing of the output under the correct test header
 	*/
-	logger2 := t.Slog()
+	logger2 := t.Slog(nil)
 	logger2.Info("t.Slog log which is indented and which is under parent test header")
 	t.Error("t.Log in parent test for comparison")
 
 	// Additionally, t.Slog() indents slog output depending on the nesting level of the test.
 	t.Run("Subtest", func(t *testing.T) {
-		logger3 := t.Slog()
+		logger3 := t.Slog(nil)
 		logger3.Info("t.Slog log which is indented and which is under subtest header")
 		t.Error("t.Log in subtest for comparison")
 
