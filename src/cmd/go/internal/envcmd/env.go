@@ -31,6 +31,7 @@ import (
 	"cmd/internal/quoted"
 )
 
+// #TODO: update docs
 var CmdEnv = &base.Command{
 	UsageLine: "go env [-json] [-u] [-w] [var ...]",
 	Short:     "print Go environment information",
@@ -64,9 +65,10 @@ func init() {
 }
 
 var (
-	envJson = CmdEnv.Flag.Bool("json", false, "")
-	envU    = CmdEnv.Flag.Bool("u", false, "")
-	envW    = CmdEnv.Flag.Bool("w", false, "")
+	envJson    = CmdEnv.Flag.Bool("json", false, "")
+	envU       = CmdEnv.Flag.Bool("u", false, "")
+	envW       = CmdEnv.Flag.Bool("w", false, "")
+	envChanged = CmdEnv.Flag.Bool("changed", false, "")
 )
 
 func MkEnv() []cfg.EnvVar {
@@ -233,6 +235,16 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 	if *envJson && *envW {
 		base.Fatalf("go: cannot use -json with -w")
 	}
+	if *envChanged && *envU {
+		base.Fatalf("go: cannot use -changed with -u")
+	}
+	if *envChanged && *envW {
+		base.Fatalf("go: cannot use -changed with -w")
+	}
+	// not supported for now
+	if *envChanged && *envJson {
+		base.Fatalf("go: cannot use -changed with -json")
+	}
 	if *envU && *envW {
 		base.Fatalf("go: cannot use -u with -w")
 	}
@@ -316,7 +328,43 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 		return
 	}
 
+	if *envChanged {
+		PrintEnv(os.Stdout, changedVars((env)))
+		return
+	}
+
 	PrintEnv(os.Stdout, env)
+}
+
+func changedVars(env []cfg.EnvVar) []cfg.EnvVar {
+	changed := []cfg.EnvVar{}
+	// might put functionality of defaultVars() directly in here instead
+	defaults := defaultVars()
+	for _, v := range env {
+		if defaults[v.Name] != v.Value {
+			changed = append(changed, v)
+		}
+	}
+	return changed
+}
+
+// still deciding what the return type should be
+func defaultVars() map[string]string {
+	d := map[string]string{}
+
+	// The main work is going to be figuring out
+	// the method for determining the default for each variable.
+	d["GOMOD"] = "example default"
+	d["GOWORK"] = ""
+	d["CGO_CFLAGS"] = "example default"
+	d["CGO_CPPFLAGS"] = "example default"
+	d["CGO_CXXFLAGS"] = "example default"
+	d["CGO_FFLAGS"] = "example default"
+	d["CGO_LDFLAGS"] = "example default"
+	d["PKG_CONFIG"] = "example default"
+	d["GOGCCFLAGS"] = "example default"
+
+	return d
 }
 
 func runEnvW(args []string) {
