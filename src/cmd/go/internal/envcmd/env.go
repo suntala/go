@@ -71,10 +71,10 @@ var (
 	envChanged = CmdEnv.Flag.Bool("changed", false, "")
 )
 
-func MkEnv() []cfg.EnvVar {
+func MkEnv(pf func(string) string) []cfg.EnvVar {
 	envFile, _ := cfg.EnvFile()
 	env := []cfg.EnvVar{
-		{Name: "GO111MODULE", Value: cfg.Getenv("GO111MODULE")},
+		{Name: "GO111MODULE", Value: pf("GO111MODULE")},
 		{Name: "GOARCH", Value: cfg.Goarch},
 		{Name: "GOBIN", Value: cfg.GOBIN},
 		{Name: "GOCACHE", Value: cache.DefaultDir()},
@@ -88,7 +88,7 @@ func MkEnv() []cfg.EnvVar {
 		// a different version (for example, when bisecting a regression).
 		{Name: "GOEXPERIMENT", Value: cfg.RawGOEXPERIMENT},
 
-		{Name: "GOFLAGS", Value: cfg.Getenv("GOFLAGS")},
+		{Name: "GOFLAGS", Value: pf("GOFLAGS")},
 		{Name: "GOHOSTARCH", Value: runtime.GOARCH},
 		{Name: "GOHOSTOS", Value: runtime.GOOS},
 		{Name: "GOINSECURE", Value: cfg.GOINSECURE},
@@ -101,8 +101,8 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GOPROXY", Value: cfg.GOPROXY},
 		{Name: "GOROOT", Value: cfg.GOROOT},
 		{Name: "GOSUMDB", Value: cfg.GOSUMDB},
-		{Name: "GOTMPDIR", Value: cfg.Getenv("GOTMPDIR")},
-		{Name: "GOTOOLCHAIN", Value: cfg.Getenv("GOTOOLCHAIN")},
+		{Name: "GOTMPDIR", Value: pf("GOTMPDIR")},
+		{Name: "GOTOOLCHAIN", Value: pf("GOTOOLCHAIN")},
 		{Name: "GOTOOLDIR", Value: build.ToolDir},
 		{Name: "GOVCS", Value: cfg.GOVCS},
 		{Name: "GOVERSION", Value: runtime.Version()},
@@ -119,11 +119,11 @@ func MkEnv() []cfg.EnvVar {
 		env = append(env, cfg.EnvVar{Name: key, Value: val})
 	}
 
-	cc := cfg.Getenv("CC")
+	cc := pf("CC")
 	if cc == "" {
 		cc = cfg.DefaultCC(cfg.Goos, cfg.Goarch)
 	}
-	cxx := cfg.Getenv("CXX")
+	cxx := pf("CXX")
 	if cxx == "" {
 		cxx = cfg.DefaultCXX(cfg.Goos, cfg.Goarch)
 	}
@@ -350,19 +350,14 @@ func changedVars(env []cfg.EnvVar) []cfg.EnvVar {
 
 // still deciding what the return type should be
 func defaultVars() map[string]string {
+	env := MkEnv(func(string) string { return "" })
 	d := map[string]string{}
 
 	// The main work is going to be figuring out
 	// the method for determining the default for each variable.
-	d["GOMOD"] = "example default"
-	d["GOWORK"] = ""
-	d["CGO_CFLAGS"] = "example default"
-	d["CGO_CPPFLAGS"] = "example default"
-	d["CGO_CXXFLAGS"] = "example default"
-	d["CGO_FFLAGS"] = "example default"
-	d["CGO_LDFLAGS"] = "example default"
-	d["PKG_CONFIG"] = "example default"
-	d["GOGCCFLAGS"] = "example default"
+	for _, e := range env {
+		d[e.Name] = e.Value
+	}
 
 	return d
 }
