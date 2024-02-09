@@ -714,7 +714,7 @@ func (v *Cmd) Ping(scheme, repo string) error {
 	// but don't let the current working directory pollute the results.
 	// In module mode, we expect GOMODCACHE to exist and be a safe place for
 	// commands; in GOPATH mode, we expect that to be true of GOPATH/src.
-	dir := cfg.GOMODCACHE
+	dir := cfg.State.GoModCache
 	if !cfg.ModulesEnabled {
 		dir = filepath.Join(cfg.BuildContext.GOPATH, "src")
 	}
@@ -1035,7 +1035,7 @@ func checkGOVCS(vcs *Cmd, root string) error {
 		return govcsErr
 	}
 
-	private := module.MatchPrefixPatterns(cfg.GOPRIVATE, root)
+	private := module.MatchPrefixPatterns(cfg.State.GoPrivate, root)
 	if !govcs.allow(root, private, vcs.Cmd) {
 		what := "public"
 		if private {

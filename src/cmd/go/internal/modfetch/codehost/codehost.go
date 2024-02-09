@@ -226,7 +226,7 @@ func ShortenSHA1(rev string) string {
 // WorkDir returns the name of the cached work directory to use for the
 // given repository type and name.
 func WorkDir(ctx context.Context, typ, name string) (dir, lockfile string, err error) {
-	if cfg.GOMODCACHE == "" {
+	if cfg.State.GoModCache == "" {
 		return "", "", fmt.Errorf("neither GOPATH nor GOMODCACHE are set")
 	}
 
@@ -239,7 +239,7 @@ func WorkDir(ctx context.Context, typ, name string) (dir, lockfile string, err e
 		return "", "", fmt.Errorf("codehost.WorkDir: type cannot contain colon")
 	}
 	key := typ + ":" + name
-	dir = filepath.Join(cfg.GOMODCACHE, "cache/vcs", fmt.Sprintf("%x", sha256.Sum256([]byte(key))))
+	dir = filepath.Join(cfg.State.GoModCache, "cache/vcs", fmt.Sprintf("%x", sha256.Sum256([]byte(key))))
 
 	xLog, buildX := cfg.BuildXWriter(ctx)
 	if buildX {

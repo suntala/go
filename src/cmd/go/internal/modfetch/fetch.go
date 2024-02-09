@@ -742,7 +742,7 @@ func checkSumDB(mod module.Version, h string) error {
 // Sum returns the checksum for the downloaded copy of the given module,
 // if present in the download cache.
 func Sum(ctx context.Context, mod module.Version) string {
-	if cfg.GOMODCACHE == "" {
+	if cfg.State.GoModCache == "" {
 		// Do not use current directory.
 		return ""
 	}

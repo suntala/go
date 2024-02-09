@@ -179,7 +179,24 @@ func defaultContext() build.Context {
 	return ctxt
 }
 
+var State Vars
+
+// #TODO: add all the other package-level variables here
+type Vars struct {
+	// #TODO: all caps
+	GoModCache string
+	GoPrivate  string
+}
+
+func GetVars(pf func(string) string) Vars {
+	return Vars{
+		GoModCache: envOr("GOMODCACHE", gopathDir("pkg/mod")),
+		GoPrivate:  pf("GOPRIVATE"),
+	}
+}
+
 func init() {
+	State = GetVars(Getenv)
 	SetGOROOT(Getenv("GOROOT"), false)
 	BuildToolchainCompiler = func() string { return "missing-compiler" }
 	BuildToolchainLinker = func() string { return "missing-linker" }
@@ -404,8 +421,7 @@ var (
 
 	GOROOT_FINAL string
 
-	GOBIN      = Getenv("GOBIN")
-	GOMODCACHE = envOr("GOMODCACHE", gopathDir("pkg/mod"))
+	GOBIN = Getenv("GOBIN")
 
 	// Used in envcmd.MkEnv and build ID computations.
 	GOARM    = envOr("GOARM", fmt.Sprint(buildcfg.GOARM))
@@ -418,9 +434,8 @@ var (
 
 	GOPROXY    = envOr("GOPROXY", "")
 	GOSUMDB    = envOr("GOSUMDB", "")
-	GOPRIVATE  = Getenv("GOPRIVATE")
-	GONOPROXY  = envOr("GONOPROXY", GOPRIVATE)
-	GONOSUMDB  = envOr("GONOSUMDB", GOPRIVATE)
+	GONOPROXY  = envOr("GONOPROXY", State.GoPrivate)
+	GONOSUMDB  = envOr("GONOSUMDB", State.GoPrivate)
 	GOINSECURE = Getenv("GOINSECURE")
 	GOVCS      = Getenv("GOVCS")
 )

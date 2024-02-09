@@ -73,6 +73,11 @@ var (
 
 func MkEnv(pf func(string) string) []cfg.EnvVar {
 	envFile, _ := cfg.EnvFile()
+	// #TODO: figure out at which point the GetVars call for getting defaults
+	// should be made. Would making the call here be too late in program initialisation for the defaults?
+	// The concern is that the default values are the result of the mutation of the state in
+	// the cfg package and that these mutations would have already happened by the time we get here.
+	cfgVars := cfg.GetVars(pf)
 	env := []cfg.EnvVar{
 		{Name: "GO111MODULE", Value: pf("GO111MODULE")},
 		{Name: "GOARCH", Value: cfg.Goarch},
@@ -92,12 +97,12 @@ func MkEnv(pf func(string) string) []cfg.EnvVar {
 		{Name: "GOHOSTARCH", Value: runtime.GOARCH},
 		{Name: "GOHOSTOS", Value: runtime.GOOS},
 		{Name: "GOINSECURE", Value: cfg.GOINSECURE},
-		{Name: "GOMODCACHE", Value: cfg.GOMODCACHE},
+		{Name: "GOMODCACHE", Value: cfgVars.GoModCache},
 		{Name: "GONOPROXY", Value: cfg.GONOPROXY},
 		{Name: "GONOSUMDB", Value: cfg.GONOSUMDB},
 		{Name: "GOOS", Value: cfg.Goos},
 		{Name: "GOPATH", Value: cfg.BuildContext.GOPATH},
-		{Name: "GOPRIVATE", Value: cfg.GOPRIVATE},
+		{Name: "GOPRIVATE", Value: cfgVars.GoPrivate},
 		{Name: "GOPROXY", Value: cfg.GOPROXY},
 		{Name: "GOROOT", Value: cfg.GOROOT},
 		{Name: "GOSUMDB", Value: cfg.GOSUMDB},

@@ -30,7 +30,7 @@ func usage() {
 }
 
 func main() {
-	cfg.GOMODCACHE = "/tmp/vcswork"
+	cfg.State.GoModCache = "/tmp/vcswork"
 	log.SetFlags(0)
 	log.SetPrefix("shell: ")
 	flag.Usage = usage

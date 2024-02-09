@@ -222,14 +222,14 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	if cleanModcache {
-		if cfg.GOMODCACHE == "" {
+		if cfg.State.GoModCache == "" {
 			base.Fatalf("go: cannot clean -modcache without a module cache")
 		}
 		if cfg.BuildN || cfg.BuildX {
-			b.Showcmd("", "rm -rf %s", cfg.GOMODCACHE)
+			b.Showcmd("", "rm -rf %s", cfg.State.GoModCache)
 		}
 		if !cfg.BuildN {
-			if err := modfetch.RemoveAll(cfg.GOMODCACHE); err != nil {
+			if err := modfetch.RemoveAll(cfg.State.GoModCache); err != nil {
 				base.Error(err)
 			}
 		}

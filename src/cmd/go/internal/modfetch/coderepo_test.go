@@ -55,8 +55,8 @@ func testMain(m *testing.M) (err error) {
 		}
 	}()
 
-	cfg.GOMODCACHE = filepath.Join(dir, "modcache")
-	if err := os.Mkdir(cfg.GOMODCACHE, 0755); err != nil {
+	cfg.State.GoModCache = filepath.Join(dir, "modcache")
+	if err := os.Mkdir(cfg.State.GoModCache, 0755); err != nil {
 		return err
 	}
 

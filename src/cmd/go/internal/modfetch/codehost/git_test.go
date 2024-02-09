@@ -119,7 +119,7 @@ func testMain(m *testing.M) (err error) {
 
 	// Redirect the module cache to a fresh directory to avoid crosstalk, and make
 	// it read/write so that the test can still clean it up easily when done.
-	cfg.GOMODCACHE = filepath.Join(dir, "modcache")
+	cfg.State.GoModCache = filepath.Join(dir, "modcache")
 	cfg.ModCacheRW = true
 
 	m.Run()

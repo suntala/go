@@ -39,7 +39,7 @@ func cacheDir(ctx context.Context, path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(cfg.GOMODCACHE, "cache/download", enc, "/@v"), nil
+	return filepath.Join(cfg.State.GoModCache, "cache/download", enc, "/@v"), nil
 }
 
 func CachePath(ctx context.Context, m module.Version, suffix string) (string, error) {
@@ -91,7 +91,7 @@ func DownloadDir(ctx context.Context, m module.Version) (string, error) {
 	}
 
 	// Check whether the directory itself exists.
-	dir := filepath.Join(cfg.GOMODCACHE, enc+"@"+encVer)
+	dir := filepath.Join(cfg.State.GoModCache, enc+"@"+encVer)
 	if fi, err := os.Stat(dir); os.IsNotExist(err) {
 		return dir, err
 	} else if err != nil {
@@ -163,7 +163,7 @@ func SideLock(ctx context.Context) (unlock func(), err error) {
 		return nil, err
 	}
 
-	path := filepath.Join(cfg.GOMODCACHE, "cache", "lock")
+	path := filepath.Join(cfg.State.GoModCache, "cache", "lock")
 	if err := os.MkdirAll(filepath.Dir(path), 0777); err != nil {
 		return nil, fmt.Errorf("failed to create cache directory: %w", err)
 	}
@@ -505,7 +505,7 @@ func readDiskStatByHash(ctx context.Context, path, rev string) (file string, inf
 	if gover.IsToolchain(path) {
 		return "", nil, errNotCached
 	}
-	if cfg.GOMODCACHE == "" {
+	if cfg.State.GoModCache == "" {
 		// Do not download to current directory.
 		return "", nil, errNotCached
 	}
@@ -782,32 +782,32 @@ var (
 // checkCacheDir checks if the directory specified by GOMODCACHE exists. An
 // error is returned if it does not.
 func checkCacheDir(ctx context.Context) error {
-	if cfg.GOMODCACHE == "" {
-		// modload.Init exits if GOPATH[0] is empty, and cfg.GOMODCACHE
+	if cfg.State.GoModCache == "" {
+		// modload.Init exits if GOPATH[0] is empty, and cfg.State.GoModCache
 		// is set to GOPATH[0]/pkg/mod if GOMODCACHE is empty, so this should never happen.
 		return fmt.Errorf("module cache not found: neither GOMODCACHE nor GOPATH is set")
 	}
-	if !filepath.IsAbs(cfg.GOMODCACHE) {
-		return fmt.Errorf("GOMODCACHE entry is relative; must be absolute path: %q.\n", cfg.GOMODCACHE)
+	if !filepath.IsAbs(cfg.State.GoModCache) {
+		return fmt.Errorf("GOMODCACHE entry is relative; must be absolute path: %q.\n", cfg.State.GoModCache)
 	}
 
 	// os.Stat is slow on Windows, so we only call it once to prevent unnecessary
 	// I/O every time this function is called.
 	statCacheOnce.Do(func() {
-		fi, err := os.Stat(cfg.GOMODCACHE)
+		fi, err := os.Stat(cfg.State.GoModCache)
 		if err != nil {
 			if !os.IsNotExist(err) {
 				statCacheErr = fmt.Errorf("could not create module cache: %w", err)
 				return
 			}
-			if err := os.MkdirAll(cfg.GOMODCACHE, 0777); err != nil {
+			if err := os.MkdirAll(cfg.State.GoModCache, 0777); err != nil {
 				statCacheErr = fmt.Errorf("could not create module cache: %w", err)
 				return
 			}
 			return
 		}
 		if !fi.IsDir() {
-			statCacheErr = fmt.Errorf("could not create module cache: %q is not a directory", cfg.GOMODCACHE)
+			statCacheErr = fmt.Errorf("could not create module cache: %q is not a directory", cfg.State.GoModCache)
 			return
 		}
 	})
