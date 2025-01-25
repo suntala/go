@@ -1078,6 +1078,71 @@ func (c *common) logDepth(s string, depth int) {
 	}
 }
 
+func (c *common) Output() io.Writer {
+	b := make([]byte, 0)
+	return &outputWriter{c, b}
+}
+
+type outputWriter struct {
+	c *common
+	b []byte
+}
+
+// TODO the return values are set to default as a quick fix.
+func (o *outputWriter) Write(p []byte) (int, error) {
+	o.b = append(o.b, p...)
+
+	o.c.mu.Lock()
+	defer o.c.mu.Unlock()
+
+	str := string(o.b)
+	var i int
+	for i >= 0 {
+		i = strings.Index(str, "\n")
+
+		if i < 0 {
+			o.b = []byte(str)
+			return 0, nil
+		}
+
+		bef := str[:i+1]
+		str = str[i+1:]
+
+		// TODO a lot of it was taken from logDepth(). Can we avoid repetition?
+		if o.c.done {
+			// This test has already finished. Try and log this message
+			// with our parent. If we don't have a parent, panic.
+			for parent := o.c.parent; parent != nil; parent = parent.parent {
+				// TODO logging a string with multiple new lines from a goroutine leads to
+				// a timeout because of repeated attempts to lock the mutex. Fix this. Consider
+				// removing the return statement and when to panic.
+				parent.mu.Lock()
+				defer parent.mu.Unlock()
+				if !parent.done {
+					parent.output = append(parent.output, fmt.Sprintf("    %s", bef)...)
+					return 0, nil
+				}
+			}
+			panic("Log in goroutine after " + o.c.name + " has completed: " + bef)
+		} else {
+			if o.c.chatty != nil {
+				if o.c.bench {
+					// Benchmarks don't print === CONT, so we should skip the test
+					// printer and just print straight to stdout.
+					fmt.Printf("    %s", bef)
+				} else {
+					o.c.chatty.Printf(o.c.name, "    %s", bef)
+				}
+				// TODO look into removing this return statement and where to
+				// append to o.c.output
+				return 0, nil
+			}
+			o.c.output = append(o.c.output, fmt.Sprintf("    %s", bef)...)
+		}
+	}
+	return 0, nil
+}
+
 // Log formats its arguments using default formatting, analogous to Println,
 // and records the text in the error log. For tests, the text will be printed only if
 // the test fails or the -test.v flag is set. For benchmarks, the text is always
