@@ -1112,18 +1112,7 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 		if o.c.done {
 			// This test has already finished. Try and log this message
 			// with our parent. If we don't have a parent, panic.
-			for parent := o.c.parent; parent != nil; parent = parent.parent {
-				// TODO logging a string with multiple new lines from a goroutine leads to
-				// a timeout because of repeated attempts to lock the mutex. Fix this. Consider
-				// removing the return statement and when to panic.
-				parent.mu.Lock()
-				defer parent.mu.Unlock()
-				if !parent.done {
-					parent.output = append(parent.output, fmt.Sprintf("    %s", bef)...)
-					return 0, nil
-				}
-			}
-			panic("Log in goroutine after " + o.c.name + " has completed: " + bef)
+			o.appendToParent(bef)
 		} else {
 			if o.c.chatty != nil {
 				if o.c.bench {
@@ -1141,6 +1130,21 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 		}
 	}
 	return 0, nil
+}
+
+func (o *outputWriter) appendToParent(s string) {
+	for parent := o.c.parent; parent != nil; parent = parent.parent {
+		parent.mu.Lock()
+		defer parent.mu.Unlock()
+		if !parent.done {
+			parent.output = append(parent.output, fmt.Sprintf("    %s", s)...)
+			break
+		}
+	}
+	// #TODO: Should we panic if all parents are done? A special case to keep in mind
+	// is when T.Output gets an input with multiple new lines. We could have the situation where
+	// we append one part but not the rest.
+	panic("Log in goroutine after " + o.c.name + " has completed: " + s)
 }
 
 // Log formats its arguments using default formatting, analogous to Println,

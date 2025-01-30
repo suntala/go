@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 	"testing"
+	"time"
 )
 
 func TestWriterUsingSlogHandler(t *testing.T) {
@@ -33,12 +34,26 @@ func TestWriterUsingSlogHandler(t *testing.T) {
 	})
 }
 
-func TestWrite(t *testing.T) {
+func TestWriteShouldAwaitTrailingNewline(t *testing.T) {
 	w := t.Output()
 
 	w.Write([]byte("Hel"))
 	w.Write([]byte("lo\nWorld\nInput to log\n\n\nMore logging\nShouldn't be logged"))
 	w.Write([]byte("Also shouldn't be logged"))
 
+	t.Error()
+}
+
+// #TODO Question: does the test itself have a parent? What is it?
+// Does having a goroutine inside the test affect whether the test has a parent?
+func TestShouldWriteEntireMultipleLineInputWhenSubtestIsDone(t *testing.T) {
+	t.Run("Multiple lines from goroutine", func(t *testing.T) {
+		go func() {
+			time.Sleep(50 * time.Millisecond)
+			w := t.Output()
+			w.Write([]byte("First line\nSecond line\nThird line\n"))
+		}()
+	})
+	time.Sleep(1 * time.Second)
 	t.Error()
 }
