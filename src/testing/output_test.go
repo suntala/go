@@ -44,8 +44,6 @@ func TestWriteShouldAwaitTrailingNewline(t *testing.T) {
 	t.Error()
 }
 
-// #TODO Question: does the test itself have a parent? What is it?
-// Does having a goroutine inside the test affect whether the test has a parent?
 func TestShouldWriteEntireMultipleLineInputWhenSubtestIsDone(t *testing.T) {
 	t.Run("Multiple lines from goroutine", func(t *testing.T) {
 		go func() {
