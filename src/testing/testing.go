@@ -1010,7 +1010,7 @@ func (c *common) log(s string) {
 	if len(s) > 0 && (string(s[len(s)-1]) != "\n") {
 		s += "\n"
 	}
-	c.Output().Write([]byte(c.logDepth(s, 3)))
+	c.provideOutputWriter().Write([]byte(c.logDepth(s, 3)))
 }
 
 // logDepth generates the output at an arbitrary stack depth. It prefixes
@@ -1042,7 +1042,8 @@ func (c *common) logDepth(s string, skip int) string {
 	return buf.String()
 }
 
-func (c *common) Output() io.Writer {
+// TODO: rename this to Output() when we are ready to export it
+func (c *common) provideOutputWriter() io.Writer {
 	b := make([]byte, 0)
 	return &outputWriter{c, b}
 }
@@ -1124,10 +1125,12 @@ func (o *outputWriter) appendToParent(s string) {
 			return
 		}
 	}
-	// #TODO: Should we panic if all parents are done? A special case to keep in mind
-	// is when T.Output gets an input with multiple new lines. We could have the situation where
-	// we append one part but not the rest.
-	panic("Log in goroutine after " + o.c.name + " has completed: " + s)
+	// TODO find a better way of formatting the panic's message
+	splits := strings.SplitN(s, ": ", 2)
+	if len(splits) < 2 {
+		panic("Log had no call site information prepended to it")
+	}
+	panic("Log in goroutine after " + o.c.name + " has completed: " + splits[1])
 }
 
 // Log formats its arguments using default formatting, analogous to Println,
