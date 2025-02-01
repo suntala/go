@@ -1135,7 +1135,7 @@ func (o *outputWriter) appendToParent(s string) {
 		defer parent.mu.Unlock()
 		if !parent.done {
 			parent.output = append(parent.output, fmt.Sprintf("    %s", s)...)
-			break
+			return
 		}
 	}
 	// #TODO: Should we panic if all parents are done? A special case to keep in mind
