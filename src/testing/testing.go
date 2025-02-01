@@ -1108,7 +1108,6 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 		bef := str[:i+1]
 		str = str[i+1:]
 
-		// TODO a lot of it was taken from logDepth(). Can we avoid repetition?
 		if o.c.done {
 			// This test has already finished. Try and log this message
 			// with our parent. If we don't have a parent, panic.
@@ -1122,11 +1121,9 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 				} else {
 					o.c.chatty.Printf(o.c.name, "    %s", bef)
 				}
-				// TODO look into removing this return statement and where to
-				// append to o.c.output
-				return 0, nil
+			} else {
+				o.c.output = append(o.c.output, fmt.Sprintf("    %s", bef)...)
 			}
-			o.c.output = append(o.c.output, fmt.Sprintf("    %s", bef)...)
 		}
 	}
 	return 0, nil

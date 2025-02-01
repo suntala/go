@@ -812,6 +812,26 @@ func TestRacyOutput(t *T) {
 	}
 }
 
+func TestOutputWriteShouldAwaitTrailingNewlineWhenChatty(t *T) {
+	buf := bytes.Buffer{}
+
+	root := &T{
+		common: common{w: &buf},
+		tstate: newTestState(1, allMatcher()),
+	}
+	root.chatty = newChattyPrinter(root.w)
+
+	root.Run("", func(t *T) {
+		w := t.Output()
+		w.Write([]byte("Hel"))
+		w.Write([]byte("lo\nWorld\nInput to log\n\n\nMore logging\nShouldn't be logged"))
+		w.Write([]byte("Also shouldn't be logged"))
+	})
+	fmt.Print(buf.String())
+
+	t.Error()
+}
+
 // The late log message did not include the test name.  Issue 29388.
 func TestLogAfterComplete(t *T) {
 	tstate := newTestState(1, allMatcher())
