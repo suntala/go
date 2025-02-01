@@ -797,44 +797,6 @@ func (c *common) frameSkip(skip int) runtime.Frame {
 	return firstFrame
 }
 
-// decorate prefixes the string with the file and line of the call site
-// and inserts the final newline if needed and indentation spaces for formatting.
-// This function must be called with c.mu held.
-func (c *common) decorate(s string, skip int) string {
-	frame := c.frameSkip(skip)
-	file := frame.File
-	line := frame.Line
-	if file != "" {
-		if *fullPath {
-			// If relative path, truncate file name at last file name separator.
-		} else if index := strings.LastIndexAny(file, `/\`); index >= 0 {
-			file = file[index+1:]
-		}
-	} else {
-		file = "???"
-	}
-	if line == 0 {
-		line = 1
-	}
-	buf := new(strings.Builder)
-	// Every line is indented at least 4 spaces.
-	buf.WriteString("    ")
-	fmt.Fprintf(buf, "%s:%d: ", file, line)
-	lines := strings.Split(s, "\n")
-	if l := len(lines); l > 1 && lines[l-1] == "" {
-		lines = lines[:l-1]
-	}
-	for i, line := range lines {
-		if i > 0 {
-			// Second and subsequent lines are indented an additional 4 spaces.
-			buf.WriteString("\n        ")
-		}
-		buf.WriteString(line)
-	}
-	buf.WriteByte('\n')
-	return buf.String()
-}
-
 // flushToParent writes c.output to the parent after first writing the header
 // with the given format and arguments.
 func (c *common) flushToParent(testName, format string, args ...any) {
@@ -1043,39 +1005,35 @@ func (c *common) FailNow() {
 
 // log generates the output. It's always at the same stack depth.
 func (c *common) log(s string) {
-	c.logDepth(s, 3) // logDepth + log + public function
+	// TODO: Figure out what to do about this comment from before:
+	// "logDepth + log + public function"
+	c.Output().Write([]byte(c.logDepth(s, 3)))
 }
 
-// logDepth generates the output at an arbitrary stack depth.
-func (c *common) logDepth(s string, depth int) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.done {
-		// This test has already finished. Try and log this message
-		// with our parent. If we don't have a parent, panic.
-		for parent := c.parent; parent != nil; parent = parent.parent {
-			parent.mu.Lock()
-			defer parent.mu.Unlock()
-			if !parent.done {
-				parent.output = append(parent.output, parent.decorate(s, depth+1)...)
-				return
-			}
+// logDepth generates the output at an arbitrary stack depth. It prefixes
+// the string with the file and line of the call site and inserts
+// indentation spaces for formatting.
+// TODO: "This function must be called with c.mu held".
+func (c *common) logDepth(s string, skip int) string {
+	frame := c.frameSkip(skip)
+	file := frame.File
+	line := frame.Line
+	if file != "" {
+		if *fullPath {
+			// If relative path, truncate file name at last file name separator.
+		} else if index := strings.LastIndexAny(file, `/\`); index >= 0 {
+			file = file[index+1:]
 		}
-		panic("Log in goroutine after " + c.name + " has completed: " + s)
 	} else {
-		if c.chatty != nil {
-			if c.bench {
-				// Benchmarks don't print === CONT, so we should skip the test
-				// printer and just print straight to stdout.
-				fmt.Print(c.decorate(s, depth+1))
-			} else {
-				c.chatty.Printf(c.name, "%s", c.decorate(s, depth+1))
-			}
-
-			return
-		}
-		c.output = append(c.output, c.decorate(s, depth+1)...)
+		file = "???"
 	}
+	if line == 0 {
+		line = 1
+	}
+	// TODO: do we still want to use the strings>Builder?
+	buf := new(strings.Builder)
+	fmt.Fprintf(buf, "%s:%d: %s", file, line, s)
+	return buf.String()
 }
 
 func (c *common) Output() io.Writer {
