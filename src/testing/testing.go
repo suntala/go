@@ -1047,6 +1047,7 @@ type outputWriter struct {
 }
 
 // TODO the return values are set to default as a quick fix.
+// TODO fix indentation
 func (o *outputWriter) Write(p []byte) (int, error) {
 	o.b = append(o.b, p...)
 
@@ -1054,17 +1055,26 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 	defer o.c.mu.Unlock()
 
 	str := string(o.b)
-	var i int
-	for i >= 0 {
-		i = strings.Index(str, "\n")
+	lines := strings.Split(str, "\n")
 
-		if i < 0 {
-			o.b = []byte(str)
-			return 0, nil
+	// Don't output if the input doesn't containe a newline
+	if len(lines) == 1 {
+		o.b = []byte(str)
+		return 0, nil
+	}
+
+	for i, line := range lines {
+		o.b = []byte(strings.Join(lines[i:], "\n"))
+
+		// Don't output yet if there isn't a final newline
+		if i == (len(lines)-1) && (line != "") {
+			return 0, nil // could do break here instead
 		}
 
-		bef := str[:i+1]
-		str = str[i+1:]
+		bef := line
+		if i != len(lines)-1 {
+			bef += "\n"
+		}
 
 		if o.c.done {
 			// This test has already finished. Try and log this message
@@ -1075,12 +1085,12 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 				if o.c.bench {
 					// Benchmarks don't print === CONT, so we should skip the test
 					// printer and just print straight to stdout.
-					fmt.Printf("    %s", bef)
+					fmt.Printf("%s", bef)
 				} else {
-					o.c.chatty.Printf(o.c.name, "    %s", bef)
+					o.c.chatty.Printf(o.c.name, "%s", bef)
 				}
 			} else {
-				o.c.output = append(o.c.output, fmt.Sprintf("    %s", bef)...)
+				o.c.output = append(o.c.output, fmt.Sprintf("%s", bef)...)
 			}
 		}
 	}
