@@ -1007,6 +1007,9 @@ func (c *common) FailNow() {
 func (c *common) log(s string) {
 	// TODO: Figure out what to do about this comment from before:
 	// "logDepth + log + public function"
+	if len(s) > 0 && (string(s[len(s)-1]) != "\n") {
+		s += "\n"
+	}
 	c.Output().Write([]byte(c.logDepth(s, 3)))
 }
 
