@@ -1,11 +1,21 @@
 package testing_test
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 	"testing"
 	"time"
 )
+
+func TestCompareLogAndOutput(t *testing.T) {
+	t.Log("first T.Log\nsecond T.Log")
+
+	fmt.Fprintln(t.Output(), "first T.Output\nsecond T.Output")
+
+	t.Error("error message")
+
+}
 
 func TestWriterUsingSlogHandler(t *testing.T) {
 	// Slog log lines as they are currently printed out in tests.
@@ -39,9 +49,11 @@ func TestWriteShouldAwaitTrailingNewline(t *testing.T) {
 
 	w.Write([]byte("Hel"))
 	w.Write([]byte("lo\nWorld\nInput to log\n\n\nMore logging\nShouldn't be logged"))
+	//TODO: If there was a newline after "also shouldn't be logged", the whole
+	// log might need to be indented 8 spaces.
 	w.Write([]byte("Also shouldn't be logged"))
 
-	t.Error()
+	t.Error("error message")
 }
 
 func TestShouldWriteEntireMultipleLineInputWhenSubtestIsDone(t *testing.T) {
@@ -53,5 +65,5 @@ func TestShouldWriteEntireMultipleLineInputWhenSubtestIsDone(t *testing.T) {
 		}()
 	})
 	time.Sleep(1 * time.Second)
-	t.Error()
+	t.Error("error message")
 }

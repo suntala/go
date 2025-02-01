@@ -1015,6 +1015,9 @@ func (c *common) log(s string) {
 // indentation spaces for formatting.
 // TODO: "This function must be called with c.mu held".
 func (c *common) logDepth(s string, skip int) string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	frame := c.frameSkip(skip)
 	file := frame.File
 	line := frame.Line
@@ -1071,7 +1074,19 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 			return 0, nil // could do break here instead
 		}
 
-		bef := line
+		indent := "    "
+		var bef string
+		// Every non-empty line is indented at least 4 spaces.
+		if len(line) > 0 {
+			bef = indent + line
+			if i > 0 {
+				// Second and subsequent lines are indented an additional 4 spaces.
+				bef = indent + bef
+			}
+		} else {
+			bef = line
+		}
+
 		if i != len(lines)-1 {
 			bef += "\n"
 		}
@@ -1102,7 +1117,7 @@ func (o *outputWriter) appendToParent(s string) {
 		parent.mu.Lock()
 		defer parent.mu.Unlock()
 		if !parent.done {
-			parent.output = append(parent.output, fmt.Sprintf("    %s", s)...)
+			parent.output = append(parent.output, fmt.Sprintf("%s", s)...)
 			return
 		}
 	}

@@ -829,7 +829,7 @@ func TestOutputWriteShouldAwaitTrailingNewlineWhenChatty(t *T) {
 	})
 	fmt.Print(buf.String())
 
-	t.Error()
+	t.Error("error message")
 }
 
 // The late log message did not include the test name.  Issue 29388.
