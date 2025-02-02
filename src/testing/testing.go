@@ -1010,14 +1010,13 @@ func (c *common) log(s string) {
 	if len(s) > 0 && (string(s[len(s)-1]) != "\n") {
 		s += "\n"
 	}
-	c.provideOutputWriter().Write([]byte(c.logDepth(s, 3)))
+	s = c.addCallSite(s, 3)
+	c.provideOutputWriter().Write([]byte(s))
 }
 
-// logDepth generates the output at an arbitrary stack depth. It prefixes
-// the string with the file and line of the call site and inserts
-// indentation spaces for formatting.
+// addCallSite prefixes the string with the file and line of the call site.
 // TODO: "This function must be called with c.mu held".
-func (c *common) logDepth(s string, skip int) string {
+func (c *common) addCallSite(s string, skip int) string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -1036,7 +1035,7 @@ func (c *common) logDepth(s string, skip int) string {
 	if line == 0 {
 		line = 1
 	}
-	// TODO: do we still want to use the strings>Builder?
+	// TODO: do we still want to use the strings.Builder?
 	buf := new(strings.Builder)
 	fmt.Fprintf(buf, "%s:%d: %s", file, line, s)
 	return buf.String()
@@ -1078,6 +1077,7 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 			return 0, nil // could do break here instead
 		}
 
+		// TODO: streamline the indentation functionality
 		indent := "    "
 		var bef string
 		// Every non-empty line is indented at least 4 spaces.
