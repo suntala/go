@@ -1052,8 +1052,7 @@ type outputWriter struct {
 	b []byte
 }
 
-// TODO the return values are set to default as a quick fix.
-// TODO fix indentation
+// TODONEXT the return values are set to default as a quick fix.
 func (o *outputWriter) Write(p []byte) (int, error) {
 	o.b = append(o.b, p...)
 
@@ -1070,46 +1069,42 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 	}
 
 	for i, line := range lines {
-		o.b = []byte(strings.Join(lines[i:], "\n"))
-
-		// Don't output yet if there isn't a final newline
+		// Don't output yet if the original input didn't end with a newline.
 		if i == (len(lines)-1) && (line != "") {
-			return 0, nil // could do break here instead
+			o.b = []byte(line)
+			break
 		}
 
-		// TODO: streamline the indentation functionality
-		indent := "    "
-		var bef string
-		// Every non-empty line is indented at least 4 spaces.
+		// TODONEXT: streamline the indentation functionality
+		// Every non-empty line is indented at least 4 spaces. Second and subsequent lines are
+		// indented an additional 4 spaces.
 		if len(line) > 0 {
-			bef = indent + line
-			if i > 0 {
-				// Second and subsequent lines are indented an additional 4 spaces.
-				bef = indent + bef
+			if i == 0 {
+				line = "    " + line
+			} else {
+				line = "        " + line
 			}
-		} else {
-			bef = line
 		}
 
 		if i != len(lines)-1 {
-			bef += "\n"
+			line += "\n"
 		}
 
 		if o.c.done {
 			// This test has already finished. Try and log this message
 			// with our parent. If we don't have a parent, panic.
-			o.appendToParent(bef)
+			o.appendToParent(line)
 		} else {
 			if o.c.chatty != nil {
 				if o.c.bench {
 					// Benchmarks don't print === CONT, so we should skip the test
 					// printer and just print straight to stdout.
-					fmt.Printf("%s", bef)
+					fmt.Printf("%s", line)
 				} else {
-					o.c.chatty.Printf(o.c.name, "%s", bef)
+					o.c.chatty.Printf(o.c.name, "%s", line)
 				}
 			} else {
-				o.c.output = append(o.c.output, fmt.Sprintf("%s", bef)...)
+				o.c.output = append(o.c.output, fmt.Sprintf("%s", line)...)
 			}
 		}
 	}
@@ -1125,7 +1120,7 @@ func (o *outputWriter) appendToParent(s string) {
 			return
 		}
 	}
-	// TODO find a better way of formatting the panic's message
+	// TODONEXT find a better way of formatting the panic's message
 	splits := strings.SplitN(s, ": ", 2)
 	if len(splits) < 2 {
 		panic("Log had no call site information prepended to it")
