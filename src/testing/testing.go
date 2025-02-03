@@ -1010,15 +1010,17 @@ func (c *common) log(s string) {
 	if len(s) > 0 && (string(s[len(s)-1]) != "\n") {
 		s += "\n"
 	}
-	c.provideOutputWriter(c.addCallSite).Write([]byte(s))
+	s = c.addCallSite(s, 3)
+	c.provideOutputWriter().Write([]byte(s))
 }
 
 // addCallSite prefixes the string with the file and line of the call site.
-func (c *common) addCallSite(s string) string {
+// TODO: "This function must be called with c.mu held".
+func (c *common) addCallSite(s string, skip int) string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	frame := c.frameSkip(3)
+	frame := c.frameSkip(skip)
 	file := frame.File
 	line := frame.Line
 	if file != "" {
@@ -1040,18 +1042,18 @@ func (c *common) addCallSite(s string) string {
 }
 
 // TODO: rename this to Output() when we are ready to export it
-func (c *common) provideOutputWriter(decorateFn func(string) string) io.Writer {
+func (c *common) provideOutputWriter() io.Writer {
 	b := make([]byte, 0)
-	return &outputWriter{c, b, decorateFn}
+	return &outputWriter{c, b}
 }
 
 type outputWriter struct {
-	c          *common
-	b          []byte
-	decorateFn func(string) string
+	c *common
+	b []byte
 }
 
 // TODO the return values are set to default as a quick fix.
+// TODO fix indentation
 func (o *outputWriter) Write(p []byte) (int, error) {
 	o.b = append(o.b, p...)
 
@@ -1102,12 +1104,12 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 				if o.c.bench {
 					// Benchmarks don't print === CONT, so we should skip the test
 					// printer and just print straight to stdout.
-					fmt.Printf("%s", o.decorateFn(bef))
+					fmt.Printf("%s", bef)
 				} else {
-					o.c.chatty.Printf(o.c.name, "%s", o.decorateFn(bef))
+					o.c.chatty.Printf(o.c.name, "%s", bef)
 				}
 			} else {
-				o.c.output = append(o.c.output, []byte(o.decorateFn(bef))...)
+				o.c.output = append(o.c.output, fmt.Sprintf("%s", bef)...)
 			}
 		}
 	}
@@ -1119,11 +1121,16 @@ func (o *outputWriter) appendToParent(s string) {
 		parent.mu.Lock()
 		defer parent.mu.Unlock()
 		if !parent.done {
-			parent.output = append(parent.output, []byte(o.decorateFn(s))...)
+			parent.output = append(parent.output, fmt.Sprintf("%s", s)...)
 			return
 		}
 	}
-	panic("Log in goroutine after " + o.c.name + " has completed: " + s)
+	// TODO find a better way of formatting the panic's message
+	splits := strings.SplitN(s, ": ", 2)
+	if len(splits) < 2 {
+		panic("Log had no call site information prepended to it")
+	}
+	panic("Log in goroutine after " + o.c.name + " has completed: " + splits[1])
 }
 
 // Log formats its arguments using default formatting, analogous to Println,
