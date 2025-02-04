@@ -1061,45 +1061,46 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 
 	str := string(o.b)
 	lines := strings.Split(str, "\n")
-
 	for i, line := range lines {
-		// Don't output yet if the original input didn't end with a newline.
 		l := len(lines)
-		if i == (l-1) && (line != "") {
-			o.b = []byte(line)
-			break
-		}
-
-		// TODONEXT: streamline the indentation functionality
-		// Every non-empty line is indented at least 4 spaces. Second and subsequent lines are
-		// indented an additional 4 spaces.
-		if len(line) > 0 {
-			if i == 0 {
-				line = "    " + line
+		if i == (l - 1) {
+			// Don't output yet if the original input didn't end with a newline.
+			if line != "" {
+				o.b = []byte(line)
+				break
 			} else {
-				line = "        " + line
+				line = "\n"
 			}
 		}
 
-		if i != l-1 {
-			line += "\n"
+		// TODONEXT: streamline the indentation functionality
+		buf := new(strings.Builder)
+		// Every line is indented at least 4 spaces.
+		if i == 0 {
+			buf.WriteString("    ")
 		}
+
+		if i > 0 && i != l-1 {
+			// Second and subsequent lines are indented an additional 4 spaces.
+			buf.WriteString("\n        ")
+		}
+		buf.WriteString(line)
 
 		if o.c.done {
 			// This test has already finished. Try and log this message
 			// with our parent. If we don't have a parent, panic.
-			o.appendToParent(line)
+			o.appendToParent(buf.String())
 		} else {
 			if o.c.chatty != nil {
 				if o.c.bench {
 					// Benchmarks don't print === CONT, so we should skip the test
 					// printer and just print straight to stdout.
-					fmt.Printf("%s", line)
+					fmt.Printf("%s", buf.String())
 				} else {
-					o.c.chatty.Printf(o.c.name, "%s", line)
+					o.c.chatty.Printf(o.c.name, "%s", buf.String())
 				}
 			} else {
-				o.c.output = append(o.c.output, fmt.Sprintf("%s", line)...)
+				o.c.output = append(o.c.output, fmt.Sprintf("%s", buf.String())...)
 			}
 		}
 	}
