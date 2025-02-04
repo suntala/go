@@ -1005,17 +1005,14 @@ func (c *common) FailNow() {
 
 // log generates the output. It's always at the same stack depth.
 func (c *common) log(s string) {
-	// TODO: Figure out what to do about this comment from before:
-	// "logDepth + log + public function"
 	if l := len(s); l > 0 && (string(s[l-1]) != "\n") {
 		s += "\n"
 	}
-	cs := c.getCallSite(3)
+	cs := c.getCallSite(3) // log + public function + call site
 	c.newOutputWriter(cs).Write([]byte(s))
 }
 
-// addCallSite prefixes the string with the file and line of the call site.
-// TODO: "This function must be called with c.mu held".
+// getCallSite prefixes the string with the file and line of the call site.
 func (c *common) getCallSite(skip int) string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -1035,10 +1032,8 @@ func (c *common) getCallSite(skip int) string {
 	if line == 0 {
 		line = 1
 	}
-	// TODO: do we still want to use the strings.Builder?
-	buf := new(strings.Builder)
-	fmt.Fprintf(buf, "%s:%d: ", file, line)
-	return buf.String()
+
+	return fmt.Sprintf("%s:%d: ", file, line)
 }
 
 // TODO: rename this to Output() when we are ready to export it
