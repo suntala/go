@@ -1054,47 +1054,17 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 	o.c.mu.Lock()
 	defer o.c.mu.Unlock()
 
-	doWrite := func(s string) {
-		if o.c.done {
-			// This test has already finished. Try and log this message
-			// with our parent. If we don't have a parent, panic.
-			for parent := o.c.parent; parent != nil; parent = parent.parent {
-				parent.mu.Lock()
-				defer parent.mu.Unlock()
-				if !parent.done {
-					parent.output = append(parent.output, s...)
-					return
-				}
-			}
-			panic("Log in goroutine after " + o.c.name + " has completed: " + string(p))
-		} else {
-			if o.c.chatty != nil {
-				if o.c.bench {
-					// Benchmarks don't print === CONT, so we should skip the test
-					// printer and just print straight to stdout.
-					fmt.Print(s)
-				} else {
-					o.c.chatty.Printf(o.c.name, "%s", s)
-				}
-			} else {
-				o.c.output = append(o.c.output, s...)
-			}
-		}
-	}
+	lines := strings.Split(string(o.b), "\n")
 
-	str := string(o.b)
-	lines := strings.Split(str, "\n")
 	for i, line := range lines {
 		l := len(lines)
-		if i == (l - 1) {
-			// Don't output yet if the original input didn't end with a newline.
-			if line != "" {
-				o.b = []byte(line)
-				if i > 0 {
-					doWrite("\n")
-				}
-				break
+		// If the last line doesn't end with a newline, store it in the buffer.
+		if i == (l-1) && line != "" {
+			o.b = []byte(line)
+			if i > 0 {
+				o.doWrite("\n", p)
 			}
+			break
 		}
 
 		buf := new(strings.Builder)
@@ -1109,12 +1079,39 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 		} else {
 			buf.WriteString("\n")
 		}
-
 		buf.WriteString(line)
 
-		doWrite(buf.String())
+		o.doWrite(buf.String(), p)
 	}
 	return len(p), nil
+}
+
+func (o *outputWriter) doWrite(s string, p []byte) {
+	if o.c.done {
+		// This test has already finished. Try and log this message
+		// with our parent. If we don't have a parent, panic.
+		for parent := o.c.parent; parent != nil; parent = parent.parent {
+			parent.mu.Lock()
+			defer parent.mu.Unlock()
+			if !parent.done {
+				parent.output = append(parent.output, s...)
+				return
+			}
+		}
+		panic("Log in goroutine after " + o.c.name + " has completed: " + string(p))
+	} else {
+		if o.c.chatty != nil {
+			if o.c.bench {
+				// Benchmarks don't print === CONT, so we should skip the test
+				// printer and just print straight to stdout.
+				fmt.Print(s)
+			} else {
+				o.c.chatty.Printf(o.c.name, "%s", s)
+			}
+		} else {
+			o.c.output = append(o.c.output, s...)
+		}
+	}
 }
 
 // Log formats its arguments using default formatting, analogous to Println,
