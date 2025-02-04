@@ -1071,22 +1071,21 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 					o.appendOutput("\n")
 				}
 				break
-			} else {
-				line = "\n"
 			}
 		}
 
-		// TODONEXT: streamline the indentation functionality
 		buf := new(strings.Builder)
-		// Every line is indented at least 4 spaces.
+		// Every line is indented at least 4 spaces. Second and subsequent
+		// lines are indented an additional 4 spaces. The final line
+		// is not indented at all.
 		if i == 0 {
 			buf.WriteString("    ")
+		} else if i < l-1 {
+			buf.WriteString("\n        ")
+		} else {
+			buf.WriteString("\n")
 		}
 
-		if i > 0 && i != l-1 {
-			// Second and subsequent lines are indented an additional 4 spaces.
-			buf.WriteString("\n        ")
-		}
 		buf.WriteString(line)
 
 		o.appendOutput(buf.String())
@@ -1137,7 +1136,7 @@ func (o *outputWriter) appendToParent(s string) {
 // printed to avoid having performance depend on the value of the -test.v flag.
 func (c *common) Log(args ...any) {
 	c.checkFuzzFn("Log")
-	c.log(fmt.Sprintln(args...))
+	c.log(fmt.Sprintln(args...)) // ah! there is another newline here!
 }
 
 // Logf formats its arguments according to the format, analogous to Printf, and
