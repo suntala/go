@@ -1048,7 +1048,6 @@ type outputWriter struct {
 	cs string //TODO reconsider this field when exposing outputWriter.Write()
 }
 
-// TODONEXT the return values are set to default as a quick fix.
 func (o *outputWriter) Write(p []byte) (int, error) {
 	o.b = append(o.b, p...)
 
@@ -1059,17 +1058,15 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 		if o.c.done {
 			// This test has already finished. Try and log this message
 			// with our parent. If we don't have a parent, panic.
-			func() {
-				for parent := o.c.parent; parent != nil; parent = parent.parent {
-					parent.mu.Lock()
-					defer parent.mu.Unlock()
-					if !parent.done {
-						parent.output = append(parent.output, s...)
-						return
-					}
+			for parent := o.c.parent; parent != nil; parent = parent.parent {
+				parent.mu.Lock()
+				defer parent.mu.Unlock()
+				if !parent.done {
+					parent.output = append(parent.output, s...)
+					return
 				}
-				panic("Log in goroutine after " + o.c.name + " has completed: " + string(p))
-			}()
+			}
+			panic("Log in goroutine after " + o.c.name + " has completed: " + string(p))
 		} else {
 			if o.c.chatty != nil {
 				if o.c.bench {
@@ -1117,7 +1114,7 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 
 		doWrite(buf.String())
 	}
-	return 0, nil
+	return len(p), nil
 }
 
 // Log formats its arguments using default formatting, analogous to Println,
