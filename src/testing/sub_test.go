@@ -997,7 +997,7 @@ func TestNestedCleanup(t *T) {
 func TestCompareLogAndOutput(t *T) {
 	t.Log("first T.Log\nsecond T.Log")
 
-	fmt.Fprintln(t.provideOutputWriter(), "first T.Output\nsecond T.Output")
+	fmt.Fprintln(t.newOutputWriter(""), "first T.Output\nsecond T.Output")
 
 	t.Error("error message")
 
@@ -1013,13 +1013,13 @@ func TestWriterUsingSlogHandler(t *T) {
 		- the indentation of slog output to match t.Log() output
 		- printing of the output under the correct test header
 	*/
-	logger2 := slog.New(slog.NewTextHandler(t.provideOutputWriter(), nil))
+	logger2 := slog.New(slog.NewTextHandler(t.newOutputWriter(""), nil))
 	logger2.Info("slog using t.Output in parent test")
 	t.Error("t.Log in parent test")
 
 	// Additionally, t.Output() indents slog output depending on the nesting level of the test.
 	t.Run("Subtest", func(t *T) {
-		logger3 := slog.New(slog.NewTextHandler(t.provideOutputWriter(), nil))
+		logger3 := slog.New(slog.NewTextHandler(t.newOutputWriter(""), nil))
 		logger3.Info("slog using t.Output in subtest")
 		t.Error("t.Log in subtest")
 
@@ -1031,7 +1031,7 @@ func TestWriterUsingSlogHandler(t *T) {
 }
 
 func TestWriteShouldAwaitTrailingNewline(t *T) {
-	w := t.provideOutputWriter()
+	w := t.newOutputWriter("")
 
 	w.Write([]byte("Hel"))
 	w.Write([]byte("lo\nWorld\nInput to log\n\n\nMore logging\nShouldn't be logged"))
@@ -1046,7 +1046,7 @@ func TestShouldWriteEntireMultipleLineInputWhenSubtestIsDone(t *T) {
 	t.Run("Multiple lines from goroutine", func(t *T) {
 		go func() {
 			time.Sleep(50 * time.Millisecond)
-			w := t.provideOutputWriter()
+			w := t.newOutputWriter("")
 			w.Write([]byte("First line\nSecond line\nThird line\n"))
 		}()
 	})

@@ -1010,13 +1010,13 @@ func (c *common) log(s string) {
 	if l := len(s); l > 0 && (string(s[l-1]) != "\n") {
 		s += "\n"
 	}
-	s = c.addCallSite(s, 3)
-	c.provideOutputWriter().Write([]byte(s))
+	cs := c.getCallSite(3)
+	c.newOutputWriter(cs).Write([]byte(s))
 }
 
 // addCallSite prefixes the string with the file and line of the call site.
 // TODO: "This function must be called with c.mu held".
-func (c *common) addCallSite(s string, skip int) string {
+func (c *common) getCallSite(skip int) string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -1037,19 +1037,20 @@ func (c *common) addCallSite(s string, skip int) string {
 	}
 	// TODO: do we still want to use the strings.Builder?
 	buf := new(strings.Builder)
-	fmt.Fprintf(buf, "%s:%d: %s", file, line, s)
+	fmt.Fprintf(buf, "%s:%d: ", file, line)
 	return buf.String()
 }
 
 // TODO: rename this to Output() when we are ready to export it
-func (c *common) provideOutputWriter() io.Writer {
+func (c *common) newOutputWriter(cs string) io.Writer {
 	b := make([]byte, 0)
-	return &outputWriter{c, b}
+	return &outputWriter{c, b, cs}
 }
 
 type outputWriter struct {
-	c *common
-	b []byte
+	c  *common
+	b  []byte
+	cs string //TODO reconsider this field when exposing outputWriter.Write()
 }
 
 // TODONEXT the return values are set to default as a quick fix.
@@ -1058,6 +1059,36 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 
 	o.c.mu.Lock()
 	defer o.c.mu.Unlock()
+
+	doWrite := func(s string) {
+		if o.c.done {
+			// This test has already finished. Try and log this message
+			// with our parent. If we don't have a parent, panic.
+			func() {
+				for parent := o.c.parent; parent != nil; parent = parent.parent {
+					parent.mu.Lock()
+					defer parent.mu.Unlock()
+					if !parent.done {
+						parent.output = append(parent.output, s...)
+						return
+					}
+				}
+				panic("Log in goroutine after " + o.c.name + " has completed: " + string(p))
+			}()
+		} else {
+			if o.c.chatty != nil {
+				if o.c.bench {
+					// Benchmarks don't print === CONT, so we should skip the test
+					// printer and just print straight to stdout.
+					fmt.Print(s)
+				} else {
+					o.c.chatty.Printf(o.c.name, "%s", s)
+				}
+			} else {
+				o.c.output = append(o.c.output, s...)
+			}
+		}
+	}
 
 	str := string(o.b)
 	lines := strings.Split(str, "\n")
@@ -1068,7 +1099,7 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 			if line != "" {
 				o.b = []byte(line)
 				if i > 0 {
-					o.appendOutput("\n")
+					doWrite("\n")
 				}
 				break
 			}
@@ -1080,6 +1111,7 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 		// is not indented at all.
 		if i == 0 {
 			buf.WriteString("    ")
+			buf.WriteString(o.cs)
 		} else if i < l-1 {
 			buf.WriteString("\n        ")
 		} else {
@@ -1088,46 +1120,9 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 
 		buf.WriteString(line)
 
-		o.appendOutput(buf.String())
+		doWrite(buf.String())
 	}
 	return 0, nil
-}
-
-func (o *outputWriter) appendOutput(s string) {
-	if o.c.done {
-		// This test has already finished. Try and log this message
-		// with our parent. If we don't have a parent, panic.
-		o.appendToParent(s)
-	} else {
-		if o.c.chatty != nil {
-			if o.c.bench {
-				// Benchmarks don't print === CONT, so we should skip the test
-				// printer and just print straight to stdout.
-				fmt.Printf("%s", s)
-			} else {
-				o.c.chatty.Printf(o.c.name, "%s", s)
-			}
-		} else {
-			o.c.output = append(o.c.output, fmt.Sprintf("%s", s)...)
-		}
-	}
-}
-
-func (o *outputWriter) appendToParent(s string) {
-	for parent := o.c.parent; parent != nil; parent = parent.parent {
-		parent.mu.Lock()
-		defer parent.mu.Unlock()
-		if !parent.done {
-			parent.output = append(parent.output, fmt.Sprintf("%s", s)...)
-			return
-		}
-	}
-	// TODONEXT find a better way of formatting the panic's message
-	splits := strings.SplitN(s, ": ", 2)
-	if len(splits) < 2 {
-		panic("Log had no call site information prepended to it")
-	}
-	panic("Log in goroutine after " + o.c.name + " has completed: " + splits[1])
 }
 
 // Log formats its arguments using default formatting, analogous to Println,
