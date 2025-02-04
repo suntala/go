@@ -1007,7 +1007,7 @@ func (c *common) FailNow() {
 func (c *common) log(s string) {
 	// TODO: Figure out what to do about this comment from before:
 	// "logDepth + log + public function"
-	if len(s) > 0 && (string(s[len(s)-1]) != "\n") {
+	if l := len(s); l > 0 && (string(s[l-1]) != "\n") {
 		s += "\n"
 	}
 	s = c.addCallSite(s, 3)
@@ -1062,15 +1062,10 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 	str := string(o.b)
 	lines := strings.Split(str, "\n")
 
-	// Don't output if the input doesn't containe a newline
-	if len(lines) == 1 {
-		o.b = []byte(str)
-		return 0, nil
-	}
-
 	for i, line := range lines {
 		// Don't output yet if the original input didn't end with a newline.
-		if i == (len(lines)-1) && (line != "") {
+		l := len(lines)
+		if i == (l-1) && (line != "") {
 			o.b = []byte(line)
 			break
 		}
@@ -1086,7 +1081,7 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 			}
 		}
 
-		if i != len(lines)-1 {
+		if i != l-1 {
 			line += "\n"
 		}
 
