@@ -1012,7 +1012,7 @@ func (c *common) log(s string) {
 	c.newOutputWriter(cs).Write([]byte(s))
 }
 
-// getCallSite prefixes the string with the file and line of the call site.
+// getCallSite retrieves and formats the file and line of the call site.
 func (c *common) getCallSite(skip int) string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -1036,18 +1036,20 @@ func (c *common) getCallSite(skip int) string {
 	return fmt.Sprintf("%s:%d: ", file, line)
 }
 
-// TODO: rename this to Output() when we are ready to export it
+// newOutputWriter
 func (c *common) newOutputWriter(cs string) io.Writer {
 	b := make([]byte, 0)
 	return &outputWriter{c, b, cs}
 }
 
+// outputWriter
 type outputWriter struct {
-	c  *common
-	b  []byte
-	cs string //TODO reconsider this field when exposing outputWriter.Write()
+	c  *common // Add doc comment
+	b  []byte  // Add doc comment
+	cs string  // Add doc comment
 }
 
+// Write
 func (o *outputWriter) Write(p []byte) (int, error) {
 	o.b = append(o.b, p...)
 
@@ -1058,35 +1060,37 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 
 	for i, line := range lines {
 		l := len(lines)
-		// If the last line doesn't end with a newline, store it in the buffer.
+		// If the last line isn't empty, store it in the buffer.
 		if i == (l-1) && line != "" {
 			o.b = []byte(line)
 			if i > 0 {
-				o.doWrite("\n", p)
+				o.writeLine("\n", p)
 			}
 			break
 		}
 
 		buf := new(strings.Builder)
-		// Every line is indented at least 4 spaces. Second and subsequent
-		// lines are indented an additional 4 spaces. The final line
-		// is not indented at all.
+		// Every line is indented at least 4 spaces. Subsequent lines are
+		// indented an additional 4 spaces except for a final, empty line.
 		if i == 0 {
 			buf.WriteString("    ")
 			buf.WriteString(o.cs)
 		} else if i < l-1 {
 			buf.WriteString("\n        ")
 		} else {
+			// The final line must be empty otherwise the loop would have
+			// broken earlier.
 			buf.WriteString("\n")
 		}
 		buf.WriteString(line)
 
-		o.doWrite(buf.String(), p)
+		o.writeLine(buf.String(), p)
 	}
 	return len(p), nil
 }
 
-func (o *outputWriter) doWrite(s string, p []byte) {
+// writeLine
+func (o *outputWriter) writeLine(s string, p []byte) {
 	if o.c.done {
 		// This test has already finished. Try and log this message
 		// with our parent. If we don't have a parent, panic.
@@ -1120,7 +1124,7 @@ func (o *outputWriter) doWrite(s string, p []byte) {
 // printed to avoid having performance depend on the value of the -test.v flag.
 func (c *common) Log(args ...any) {
 	c.checkFuzzFn("Log")
-	c.log(fmt.Sprintln(args...)) // ah! there is another newline here!
+	c.log(fmt.Sprintln(args...))
 }
 
 // Logf formats its arguments according to the format, analogous to Printf, and
