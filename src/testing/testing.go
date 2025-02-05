@@ -1003,12 +1003,13 @@ func (c *common) FailNow() {
 	runtime.Goexit()
 }
 
-// log generates the output. It's always at the same stack depth.
+// log generates the output. It is always at the same stack depth. It inserts
+// the final newline if necessary.
 func (c *common) log(s string) {
 	if l := len(s); l > 0 && (string(s[l-1]) != "\n") {
 		s += "\n"
 	}
-	cs := c.getCallSite(3) // log + public function + call site
+	cs := c.getCallSite(3) // getCallSite + log + public function
 	c.newOutputWriter(cs).Write([]byte(s))
 }
 
@@ -1036,20 +1037,22 @@ func (c *common) getCallSite(skip int) string {
 	return fmt.Sprintf("%s:%d: ", file, line)
 }
 
-// newOutputWriter
+// newOutputWriter initialises a new outputWriter with the provided call site.
 func (c *common) newOutputWriter(cs string) io.Writer {
 	b := make([]byte, 0)
 	return &outputWriter{c, b, cs}
 }
 
-// outputWriter
+// outputWriter buffers, formats and writes input.
 type outputWriter struct {
-	c  *common // Add doc comment
-	b  []byte  // Add doc comment
-	cs string  // Add doc comment
+	c  *common
+	b  []byte // Stores incomplete input between writes.
+	cs string // Call site.
 }
 
-// Write
+// Write generates the output. It prefixes the string with the file and line of
+// the call site if provided. It inserts indentation spaces for formatting. It
+// stores input for later if it is not terminated by a newline.
 func (o *outputWriter) Write(p []byte) (int, error) {
 	o.b = append(o.b, p...)
 
@@ -1060,7 +1063,7 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 
 	for i, line := range lines {
 		l := len(lines)
-		// If the last line isn't empty, store it in the buffer.
+		// If the last line is not empty, store it in the buffer.
 		if i == (l-1) && line != "" {
 			o.b = []byte(line)
 			if i > 0 {
@@ -1070,8 +1073,9 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 		}
 
 		buf := new(strings.Builder)
-		// Every line is indented at least 4 spaces. Subsequent lines are
-		// indented an additional 4 spaces except for a final, empty line.
+		// The first line is indented 4 spaces. Subsequent lines are
+		// indented 8 spaces unless a line is the final one and
+		// is empty.
 		if i == 0 {
 			buf.WriteString("    ")
 			buf.WriteString(o.cs)
@@ -1079,7 +1083,7 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 			buf.WriteString("\n        ")
 		} else {
 			// The final line must be empty otherwise the loop would have
-			// broken earlier.
+			// terminated earlier.
 			buf.WriteString("\n")
 		}
 		buf.WriteString(line)
@@ -1089,7 +1093,7 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// writeLine
+// writeLine generates the output for a given line.
 func (o *outputWriter) writeLine(s string, p []byte) {
 	if o.c.done {
 		// This test has already finished. Try and log this message
